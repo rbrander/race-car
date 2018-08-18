@@ -22,6 +22,14 @@ const CAR_IMAGE_FILENAMES = [
 ];
 const CAR_SIZE_PCT = 1; // 100% of the size it actually is
 
+const CORNER_FRONT_LEFT = 'Front Left Corner';
+const CORNER_FRONT_RIGHT = 'Front Right Corner';
+const CORNER_REAR_LEFT = 'Rear Left Corner';
+const CORNER_REAR_RIGHT = 'Rear Right Corner';
+const CORNER_STATUS_CLEAR = 'Status: clear';
+const CORNER_STATUS_WARNING = 'Status: warning';
+const CORNER_STATUS_ERROR = 'Status: error';
+
 const MAP_FILENAME = './track-maps.png';
 // There are two track maps in the map file
 const MAP_TRACKS = [
@@ -77,6 +85,12 @@ const state = {
     y: 1000,
     direction: 0,
     velocity: 10,
+    corners: {
+      CORNER_FRONT_LEFT: CORNER_STATUS_CLEAR,
+      CORNER_FRONT_RIGHT: CORNER_STATUS_CLEAR,
+      CORNER_REAR_LEFT: CORNER_STATUS_CLEAR,
+      CORNER_REAR_RIGHT: CORNER_STATUS_CLEAR
+    },
     selectedImage: undefined
   },
   clickCount: 0
@@ -103,12 +117,22 @@ const updateTick = (time) => {
 const updateCar = () => {
   const { keys, car } = state;
 
-  // car movement
+  // forward movement
   if (keys.has(UP_ARROW)) {
     car.x += car.velocity * Math.cos(car.direction);
     car.y += car.velocity * Math.sin(car.direction);
   }
 
+  // reverse movement
+  if (keys.has(DOWN_ARROW)) {
+    const reverseDrag = 0.5; // 50% of speed going forward
+    const reverseVelocity = car.velocity * reverseDrag;
+    const reverseDirection = car.direction + Math.PI;
+    car.x += reverseVelocity * Math.cos(reverseDirection);
+    car.y += reverseVelocity * Math.sin(reverseDirection);
+  }
+
+  // check rotation
   if (keys.has(LEFT_ARROW)) {
     car.direction -= TURNING_ANGLE;
   }

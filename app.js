@@ -1,4 +1,11 @@
 // app.js -- race car sprite demo
+/*
+TODO:
+- collision detection (look for black near corners of car)
+- change car colour randomly and specifically
+- trigger random rotating car colour picker
+- (using let instead const) for HALF_CANVAS_WIDTH (and height), and update on resize
+*/
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -20,21 +27,27 @@ const MAP_FILENAME = './track-maps.png';
 const MAP_TRACKS = [
   // Map 1 is (100, 0) -> (1250, 1600) = 1150x1600
   {
-    startX: 100,
-    startY: 0,
-    width: 1150,
-    height: 1600
+    x: 100, // x,y location of source image to start copying
+    y: 0,
+    width: 1150, // width,height of source image to copy
+    height: 1600,
+    startX: 1300, // starting position for race car; starting line
+    startY: 1580,
+    zoomPct: 2.4 // 230% of original size
   },
   // Map 2 is (1300, 0) -> (2700, 1600) = 1400x1600
   {
-    startX: 1300,
-    startY: 0,
-    width: 1400,
-    height: 1600
+    x: 1300, // x,y location of source image to start copying
+    y: 0,
+    width: 1400, // width,height of source image to copy
+    height: 1600,
+    startX: 1600, // starting position for race car; starting line
+    startY: 400,
+    zoomPct: 2 // 200% of original size
   }
 ];
-const MAP_SIZE_PCT = 1.5; // 150%
 
+// Keyboard Constants (event.key)
 const UP_ARROW = 'ArrowUp';
 const DOWN_ARROW = 'ArrowDown';
 const RIGHT_ARROW = 'ArrowRight';
@@ -54,14 +67,14 @@ const state = {
     yOffset: 0,
     image: undefined,
     isLoaded: false,
-    track: 1,
+    trackIdx: 0 // index of MAP_TRACKS
   },
-  keys: new Set([]),
+  keys: new Set([]), // keep track of what keys are pressed, a Set is used to help avoid duplicates
   car: {
     images: [],
     imagesLoaded: false,
-    x: 600,
-    y: 180,
+    x: 800,
+    y: 1000,
     direction: 0,
     velocity: 10,
     selectedImage: undefined
@@ -69,6 +82,13 @@ const state = {
   clickCount: 0
 };
 
+
+const selectTrack = (trackIndex) => {
+  state.map.trackIdx = trackIndex % MAP_TRACKS.length; // modding it for safety
+  // reset the car position
+  const currTrack = MAP_TRACKS[state.map.trackIdx];
+  Object.assign(state.car, { x: currTrack.startX, y: currTrack.startY });
+};
 
 const updateTick = (time) => {
   const { tick } = state;
@@ -97,9 +117,17 @@ const updateCar = () => {
   }
 };
 
+const updateMap = () => {
+  const { map, car } = state;
+  // scroll the map so the player is in the center
+  map.xOffset = car.x - (canvas.width / 2);
+  map.yOffset = car.y - (canvas.height / 2);
+};
+
 const update = (time) => {
   updateTick();
   updateCar();
+  updateMap();
 };
 
 const clearBackground = () => {
@@ -110,15 +138,16 @@ const clearBackground = () => {
 const drawMap = () => {
   const { map } = state;
   if (map.isLoaded) {
-    const { startX, startY, width, height } = MAP_TRACKS[map.track];
-    const sourceX = startX;
-    const sourceY = startY;
+    const { x, y, width, height } = MAP_TRACKS[map.trackIdx];
+    const sourceX = x;
+    const sourceY = y;
     const sourceWidth = width;
     const sourceHeight = height;
-    const canvasX = map.xOffset;
-    const canvasY = map.yOffset;
-    const canvasWidth = sourceWidth * MAP_SIZE_PCT;
-    const canvasHeight = sourceHeight * MAP_SIZE_PCT;
+    const canvasX = -map.xOffset;
+    const canvasY = -map.yOffset;
+    const mapSizePct = MAP_TRACKS[state.map.trackIdx].zoomPct;
+    const canvasWidth = sourceWidth * mapSizePct;
+    const canvasHeight = sourceHeight * mapSizePct;
     // TODO: crop just the part that is on the screen
     ctx.drawImage(map.image,
       sourceX, sourceY, sourceWidth, sourceHeight,
@@ -136,13 +165,15 @@ const drawCar = () => {
     const HALF_CAR_HEIGHT = ~~(CAR_HEIGHT / 2);
     const REAR_AXLE_FROM_CENTER = ~~(46 * CAR_SIZE_PCT); // 46px is relative to the original image
     const carRotateAngle = car.direction - (Math.PI / 2); // The original image is rotated +90 degrees, or Math.PI/2 radians
-    ctx.translate(car.x, car.y);
+    const carXPos = ~~(canvas.width / 2);
+    const carYPos = ~~(canvas.height / 2);
+    ctx.translate(carXPos, carYPos);
     ctx.rotate(carRotateAngle);
     const carImageOffsetY = -(CAR_HEIGHT - HALF_CAR_HEIGHT - REAR_AXLE_FROM_CENTER);
     const carImageOffsetX = -HALF_CAR_WIDTH;
     ctx.drawImage(car.selectedImage, carImageOffsetX, carImageOffsetY, CAR_WIDTH, CAR_HEIGHT);
     ctx.rotate(-carRotateAngle);
-    ctx.translate(-car.x, -car.y);
+    ctx.translate(-carXPos, -carYPos);
   }
 };
 
@@ -226,11 +257,6 @@ const loadMaps = () => {
   };
 };
 
-const changeCar = () => {
-  state.clickCount++;
-  updateSelectedImage();
-};
-
 const init = () => {
   console.log('race-car');
   loadCarImages();
@@ -240,6 +266,7 @@ const init = () => {
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   onResize();
+  selectTrack(~~(Math.random() * MAP_TRACKS.length));
   requestAnimationFrame(loop);
 };
 

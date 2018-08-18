@@ -1,0 +1,8 @@
+blue_car.png
+green_car.png
+orange_car.png
+pink_car.png
+preview.png
+red_car.png
+white_car.png
+yellow_car.png

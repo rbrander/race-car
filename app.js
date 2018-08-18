@@ -94,13 +94,13 @@ const update = (time) => {
   }
 };
 
-const REAR_AXLE_FROM_CENTER = 46; // pixels
-const draw = (time) => {
-  const { car, map } = state;
+const clearBackground = () => {
   ctx.fillStyle = 'brown';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+};
 
-  // draw map
+const drawMap = () => {
+  const { map } = state;
   if (map.isLoaded) {
     const { startX, startY, width, height } = MAP_TRACKS[map.track];
     const sourceX = startX;
@@ -116,8 +116,11 @@ const draw = (time) => {
       canvasX, canvasY, canvasWidth, canvasHeight
     );
   }
+};
 
-  // draw the car
+const drawCar = () => {
+  const { car } = state;
+  const REAR_AXLE_FROM_CENTER = 46; // pixels
   if (car.imagesLoaded && car.selectedImage instanceof Image) {
     const carRotateAngle = car.direction - (Math.PI / 2);
     const carPosX = car.x;
@@ -132,50 +135,20 @@ const draw = (time) => {
     ctx.rotate(-carRotateAngle);
     ctx.translate(-carPosX, -carPosY);
   }
+};
 
-  // draw white corners
-  const LINE_LENGTH = 25;
-  const PADDING = 5;
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'white';
-
-  // upper left
-  ctx.beginPath()
-  ctx.moveTo(PADDING, PADDING + LINE_LENGTH);
-  ctx.lineTo(PADDING, PADDING);
-  ctx.lineTo(PADDING + LINE_LENGTH, PADDING);
-  ctx.stroke();
-
-  // upper right
-  ctx.beginPath()
-  ctx.moveTo(canvas.width - PADDING - LINE_LENGTH, PADDING);
-  ctx.lineTo(canvas.width - PADDING, PADDING);
-  ctx.lineTo(canvas.width - PADDING, PADDING + LINE_LENGTH);
-  ctx.stroke();
-
-  // lower left
-  ctx.beginPath()
-  ctx.moveTo(PADDING, canvas.height - PADDING - LINE_LENGTH);
-  ctx.lineTo(PADDING, canvas.height - PADDING);
-  ctx.lineTo(PADDING + LINE_LENGTH, canvas.height - PADDING);
-  ctx.stroke();
-
-  // lower right
-  ctx.beginPath()
-  ctx.moveTo(canvas.width - PADDING - LINE_LENGTH, canvas.height - PADDING);
-  ctx.lineTo(canvas.width - PADDING, canvas.height - PADDING);
-  ctx.lineTo(canvas.width - PADDING, canvas.height - PADDING - LINE_LENGTH);
-  ctx.stroke();
-
-
-  // draw FPS
+const drawText = () => {
   ctx.fillStyle = 'white';
   ctx.font = '20px Arial';
   ctx.textBaseline = 'top';
-  ctx.fillText(`FPS: ${state.tick.framesPerSecond}`, 10, 10);
-
-  // draw keys
   ctx.fillText([...state.keys].join(', '), 100, 10);
+};
+
+const draw = (time) => {
+  clearBackground();
+  drawMap();
+  drawCar();
+  drawText();
 };
 
 const loop = (time) => {
@@ -204,6 +177,7 @@ const loadCarImages = () => {
 
 const onClick = (e) => {
   state.clickCount++;
+  state.map.track = (state.map.track + 1) % MAP_TRACKS.length;
 };
 
 const onResize = (e) => {

@@ -13,6 +13,7 @@ const CAR_IMAGE_FILENAMES = [
   'white_car.png',
   'yellow_car.png'
 ];
+const CAR_SIZE_PCT = 1; // 100% of the size it actually is
 
 const MAP_FILENAME = './track-maps.png';
 // There are two track maps in the map file
@@ -32,6 +33,7 @@ const MAP_TRACKS = [
     height: 1600
   }
 ];
+const MAP_SIZE_PCT = 1.5; // 150%
 
 const UP_ARROW = 'ArrowUp';
 const DOWN_ARROW = 'ArrowDown';
@@ -48,6 +50,8 @@ const state = {
     framesPerSecond: 0
   },
   map: {
+    xOffset: 0,
+    yOffset: 0,
     image: undefined,
     isLoaded: false,
     track: 1,
@@ -56,8 +60,8 @@ const state = {
   car: {
     images: [],
     imagesLoaded: false,
-    x: 200,
-    y: 200,
+    x: 600,
+    y: 180,
     direction: 0,
     velocity: 10,
     selectedImage: undefined
@@ -65,33 +69,37 @@ const state = {
   clickCount: 0
 };
 
-const update = (time) => {
-  const { tick, keys, car, clickCount } = state;
+
+const updateTick = (time) => {
+  const { tick } = state;
   // Calculate the frames per second
   tick.prev = tick.curr;
   tick.curr = time;
   const msPerFrame = time - tick.prev;
   const msPerSecond = 1000;
   tick.framesPerSecond = ~~(msPerSecond / msPerFrame);
+};
+
+const updateCar = () => {
+  const { keys, car } = state;
 
   // car movement
   if (keys.has(UP_ARROW)) {
     car.x += car.velocity * Math.cos(car.direction);
     car.y += car.velocity * Math.sin(car.direction);
   }
+
   if (keys.has(LEFT_ARROW)) {
     car.direction -= TURNING_ANGLE;
   }
   if (keys.has(RIGHT_ARROW)) {
     car.direction += TURNING_ANGLE;
   }
+};
 
-  // Use the click count to determine which car to show
-  if (car.imagesLoaded && car.images.length > 0) {
-    const imageIndex = clickCount % car.images.length;
-    const image = car.images[imageIndex].image;
-    car.selectedImage = image;
-  }
+const update = (time) => {
+  updateTick();
+  updateCar();
 };
 
 const clearBackground = () => {
@@ -107,10 +115,11 @@ const drawMap = () => {
     const sourceY = startY;
     const sourceWidth = width;
     const sourceHeight = height;
-    const canvasX = 0;
-    const canvasY = 0;
-    const canvasWidth = sourceWidth;
-    const canvasHeight = sourceHeight;
+    const canvasX = map.xOffset;
+    const canvasY = map.yOffset;
+    const canvasWidth = sourceWidth * MAP_SIZE_PCT;
+    const canvasHeight = sourceHeight * MAP_SIZE_PCT;
+    // TODO: crop just the part that is on the screen
     ctx.drawImage(map.image,
       sourceX, sourceY, sourceWidth, sourceHeight,
       canvasX, canvasY, canvasWidth, canvasHeight
@@ -120,20 +129,20 @@ const drawMap = () => {
 
 const drawCar = () => {
   const { car } = state;
-  const REAR_AXLE_FROM_CENTER = 46; // pixels
   if (car.imagesLoaded && car.selectedImage instanceof Image) {
-    const carRotateAngle = car.direction - (Math.PI / 2);
-    const carPosX = car.x;
-    const carPosY = car.y;
-    ctx.translate(carPosX, carPosY);
+    const CAR_WIDTH = ~~(car.selectedImage.width * CAR_SIZE_PCT);
+    const CAR_HEIGHT = ~~(car.selectedImage.height * CAR_SIZE_PCT);
+    const HALF_CAR_WIDTH = ~~(CAR_WIDTH / 2);
+    const HALF_CAR_HEIGHT = ~~(CAR_HEIGHT / 2);
+    const REAR_AXLE_FROM_CENTER = ~~(46 * CAR_SIZE_PCT); // 46px is relative to the original image
+    const carRotateAngle = car.direction - (Math.PI / 2); // The original image is rotated +90 degrees, or Math.PI/2 radians
+    ctx.translate(car.x, car.y);
     ctx.rotate(carRotateAngle);
-    const halfCarWidth = ~~(car.selectedImage.width / 2);
-    const halfCarHeight = ~~(car.selectedImage.height / 2);
-    const carImageOffsetY = -(car.selectedImage.height - halfCarHeight - REAR_AXLE_FROM_CENTER)
-    const carImageOffsetX = -halfCarWidth;
-    ctx.drawImage(car.selectedImage, carImageOffsetX, carImageOffsetY);
+    const carImageOffsetY = -(CAR_HEIGHT - HALF_CAR_HEIGHT - REAR_AXLE_FROM_CENTER);
+    const carImageOffsetX = -HALF_CAR_WIDTH;
+    ctx.drawImage(car.selectedImage, carImageOffsetX, carImageOffsetY, CAR_WIDTH, CAR_HEIGHT);
     ctx.rotate(-carRotateAngle);
-    ctx.translate(-carPosX, -carPosY);
+    ctx.translate(-car.x, -car.y);
   }
 };
 
@@ -170,14 +179,29 @@ const loadCarImages = () => {
   Promise.all(imagePromises)
     .then(images => {
       // all images are now loaded
-      state.car.images = images;
-      state.car.imagesLoaded = true;
+      const { car } = state;
+      car.images = images;
+      car.imagesLoaded = true;
+      if (images.length > 0) {
+        car.selectedImage = images[0].image;
+      }
   });
 };
 
+const updateSelectedImage = () => {
+  const { car, clickCount } = state;
+  // Use the click count to determine which car to show
+  if (car.imagesLoaded && car.images.length > 0) {
+    const imageIndex = clickCount % car.images.length;
+    const image = car.images[imageIndex].image;
+    car.selectedImage = image;
+  }
+};
+
 const onClick = (e) => {
+  const { car } = state;
   state.clickCount++;
-  state.map.track = (state.map.track + 1) % MAP_TRACKS.length;
+  updateSelectedImage();
 };
 
 const onResize = (e) => {
@@ -200,6 +224,11 @@ const loadMaps = () => {
     state.map.image = mapImage;
     state.map.isLoaded = true;
   };
+};
+
+const changeCar = () => {
+  state.clickCount++;
+  updateSelectedImage();
 };
 
 const init = () => {
